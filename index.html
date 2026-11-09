@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Birtles' Binary Banquet</title>
+<style>
+:root{
+  --bg:#f5f6fa;--card:#ffffff;--text:#1d2433;--muted:#5c667a;--border:#dde2ec;
+  --accent:#3b5bdb;--accent-text:#ffffff;--accent-weak:#e7ecff;
+  --ok:#2b8a3e;--ok-bg:#e6f6ea;--bad:#c92a2a;--bad-bg:#fdecec;--warn:#9c5b00;--warn-bg:#fff4e0;
+  --code-bg:#eef1f7;--shadow:0 1px 2px rgba(20,30,60,.06),0 2px 8px rgba(20,30,60,.05);
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#11141b;--card:#1a1f29;--text:#e6e9ef;--muted:#9aa3b5;--border:#2c3340;
+    --accent:#7c93ff;--accent-text:#0e1220;--accent-weak:#232b45;
+    --ok:#69db7c;--ok-bg:#1a2f21;--bad:#ff8787;--bad-bg:#3a1f22;--warn:#ffc078;--warn-bg:#3a2d1a;
+    --code-bg:#262c38;--shadow:none;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:860px;margin:0 auto;padding:24px 16px 80px}
+h1{font-size:1.75rem;margin:0 0 4px;letter-spacing:-.01em}
+h2{font-size:1.1rem;margin:0 0 12px}
+.lede{color:var(--muted);margin:0 0 20px}
+.panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px;box-shadow:var(--shadow);margin-bottom:20px}
+.topics{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;margin-bottom:14px}
+.topic{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;user-select:none}
+.topic:hover{border-color:var(--accent)}
+.topic input{margin-top:4px;accent-color:var(--accent);width:16px;height:16px;flex:none}
+.topic small{display:block;color:var(--muted);font-size:.8rem;line-height:1.3}
+.topic.on{background:var(--accent-weak);border-color:var(--accent)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.row.between{justify-content:space-between}
+button{font:inherit;border-radius:8px;border:1px solid transparent;padding:8px 14px;cursor:pointer;background:var(--accent);color:var(--accent-text);font-weight:600}
+button:hover{filter:brightness(1.08)}
+button:disabled{opacity:.45;cursor:not-allowed;filter:none}
+button.ghost{background:transparent;color:var(--accent);border-color:var(--border)}
+button.ghost:hover{border-color:var(--accent)}
+button.link{background:none;border:none;color:var(--accent);padding:4px 6px;font-weight:500}
+label.count{display:flex;align-items:center;gap:8px;color:var(--muted)}
+input[type=number]{width:80px}
+input.seed{width:110px}
+input[type=text],input[type=number]{font:inherit;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text)}
+input[type=text]{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;min-width:0}
+input:focus{outline:2px solid var(--accent);outline-offset:1px}
+.err{color:var(--bad);font-size:.9rem;min-height:1.2em;margin-top:8px}
+
+.scorebar{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0;margin-bottom:8px;border-bottom:1px solid var(--border)}
+.score{font-weight:600}
+.score span{color:var(--muted);font-weight:400}
+.progress{height:6px;border-radius:3px;background:var(--border);overflow:hidden;margin:8px 0}
+.progress div{height:100%;background:var(--ok);width:0;transition:width .25s}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{min-width:34px;height:30px;padding:0 6px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);font-weight:600;font-size:.85rem}
+.chip.correct{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
+.chip.wrong{background:var(--bad-bg);border-color:var(--bad);color:var(--bad)}
+.chip.revealed{background:var(--warn-bg);border-color:var(--warn);color:var(--warn)}
+
+.q{background:var(--card);border:1px solid var(--border);border-left:4px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:var(--shadow);scroll-margin-top:130px}
+.q.correct{border-left-color:var(--ok)}
+.q.wrong{border-left-color:var(--bad)}
+.q.revealed{border-left-color:var(--warn)}
+.q header{display:flex;gap:10px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+.num{font-weight:700}
+.tag{font-size:.75rem;color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:1px 8px}
+.badge{margin-left:auto;font-size:.8rem;font-weight:700}
+.q.correct .badge{color:var(--ok)}.q.wrong .badge{color:var(--bad)}.q.revealed .badge{color:var(--warn)}
+.prompt{margin-bottom:12px}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--code-bg);padding:1px 6px;border-radius:5px;font-size:.95em;white-space:nowrap}
+pre.sum{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--code-bg);padding:10px 14px;border-radius:8px;display:inline-block;margin:8px 0 0;font-size:1.05em;line-height:1.6}
+.fp{display:inline-grid;grid-template-columns:auto auto;gap:4px 12px;background:var(--code-bg);padding:10px 14px;border-radius:8px;margin:8px 8px 0 0;align-items:center}
+.fp .lbl{color:var(--muted);font-size:.85rem}
+.fp code{background:none;padding:0;font-size:1.05em}
+.fp .name{grid-column:1/-1;font-weight:700;font-size:.9rem}
+.fields{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:10px}
+.fields label{display:flex;flex-direction:column;gap:4px;font-size:.85rem;color:var(--muted);flex:1 1 180px;max-width:280px}
+.feedback{font-size:.95rem;border-radius:8px;padding:0}
+.feedback:not(:empty){padding:10px 12px;margin-top:10px}
+.feedback.ok{background:var(--ok-bg);color:var(--text)}
+.feedback.bad{background:var(--bad-bg);color:var(--text)}
+.feedback.info{background:var(--warn-bg);color:var(--text)}
+.feedback strong{display:block;margin-bottom:2px}
+.feedback .work{color:var(--muted);font-size:.9rem;margin-top:4px}
+.done{background:var(--ok-bg);border:1px solid var(--ok);border-radius:12px;padding:14px 16px;margin-bottom:14px;font-weight:600}
+.hidden{display:none!important}
+.exportbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:6px;color:var(--muted);font-size:.9rem}
+.help{color:var(--muted);font-size:.85rem;margin-top:12px}
+@media (max-width:520px){
+  .fields label{max-width:none}
+  .fields button{flex:1}
+  h1{font-size:1.5rem}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Birtles' Binary Banquet</h1>
+  <p class="lede">Practise number representation and binary arithmetic. Pick your topics, choose how many questions, then answer them in any order.</p>
+
+  <section class="panel" id="setup">
+    <div class="row between" style="margin-bottom:10px">
+      <h2 style="margin:0">Choose topics</h2>
+      <div><button class="link" id="allBtn" type="button">Select all</button><button class="link" id="noneBtn" type="button">Clear</button></div>
+    </div>
+    <div class="topics" id="topics"></div>
+    <div class="row">
+      <label class="count">Number of questions <input type="number" id="count" min="1" max="100" value="10"></label>
+      <button id="genBtn" type="button">Generate questions</button>
+      <label class="count">Random seed <input type="text" id="seed" class="seed" inputmode="numeric" pattern="[0-9]*" maxlength="12" spellcheck="false" autocomplete="off"></label>
+      <button class="ghost" id="seedBtn" type="button" title="Pick a new random seed">New seed</button>
+    </div>
+    <div class="err" id="setupErr"></div>
+    <p class="help">Floating point questions use an 8-bit two's complement mantissa (binary point after the first bit) and a 4-bit two's complement exponent. Spaces in answers are ignored.</p>
+  </section>
+
+  <section id="quiz" class="hidden">
+    <div class="scorebar">
+      <div class="row between">
+        <div class="score" id="score"></div>
+        <button class="ghost" id="newBtn" type="button">New set</button>
+      </div>
+      <div class="progress"><div id="bar"></div></div>
+      <div class="chips" id="chips"></div>
+    </div>
+    <div id="doneMsg" class="done hidden"></div>
+    <div id="questions"></div>
+    <div class="exportbar">
+      <button id="exportBtn" type="button">Export my work</button>
+      <span>Downloads a Markdown (.md) file of every question, your attempts and the answers.</span>
+    </div>
+  </section>
+</div>
+
+<script>
+/* ---------- helpers ---------- */
+/* seeded random numbers: the same seed, topics and count always give the same questions */
+let rand=Math.random;
+function seedRandom(seed){
+  let h=1779033703^seed.length;
+  for(let i=0;i<seed.length;i++){h=Math.imul(h^seed.charCodeAt(i),3432918353);h=h<<13|h>>>19;}
+  let a=h>>>0;
+  rand=()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};
+}
+const newSeed=()=>String(Math.floor(Math.random()*900000)+100000);
+const rnd=(a,b)=>Math.floor(rand()*(b-a+1))+a;
+const pick=a=>a[rnd(0,a.length-1)];
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=rnd(0,i);[a[i],a[j]]=[a[j],a[i]];}return a;};
+const toBin=(n,w)=>n.toString(2).padStart(w,'0');
+const toTC=(n,w)=>(((n%(1<<w))+(1<<w))%(1<<w)).toString(2).padStart(w,'0');
+const fromTC=s=>{let v=parseInt(s,2);if(s[0]==='1')v-=2**s.length;return v;};
+const nib=s=>s.replace(/(?=(?:[01]{4})+$)/g,' ').trim();
+const code=s=>`<code>${s}</code>`;
+const hex=n=>n.toString(16).toUpperCase();
+const clean=s=>String(s).replace(/\s+/g,'').replace(/[−–—]/g,'-');
+const fmt=v=>{let s=String(+v.toFixed(12));return s.replace('-','−');};
+const res=(ok,msg,invalid)=>({ok,msg,invalid:!!invalid});
+const F=(...labels)=>labels.map(l=>typeof l==='string'?{label:l}:l);
+
+function parseNum(raw){
+  const s=clean(raw);
+  if(/^[+-]?(\d+\.?\d*|\.\d+)$/.test(s))return parseFloat(s);
+  const m=s.match(/^([+-]?)(\d+)\/(\d+)$/);
+  if(m&&+m[3])return (m[1]==='-'?-1:1)*(+m[2])/(+m[3]);
+  return NaN;
+}
+
+/* ---------- checkers ---------- */
+const chkInt=t=>v=>{const s=clean(v[0]);if(!/^[+-]?\d+$/.test(s))return res(false,'Enter a whole number in denary, e.g. 42 or -42.',true);return res(parseInt(s,10)===t);};
+const chkNum=t=>v=>{const x=parseNum(v[0]);if(isNaN(x))return res(false,'Enter a denary number, e.g. 5.625, -0.375 or 3/8.',true);return res(Math.abs(x-t)<1e-9);};
+const chkBin=t=>v=>{const s=clean(v[0]);if(!/^[01]+$/.test(s))return res(false,'Use only the digits 0 and 1.',true);return res(parseInt(s,2)===t);};
+const chkBinExact=bits=>v=>{const s=clean(v[0]);if(!/^[01]+$/.test(s))return res(false,'Use only the digits 0 and 1.',true);
+  if(s.length!==bits.length)return res(false,`Give exactly ${bits.length} bits.`,true);return res(s===bits);};
+const chkHex=t=>v=>{const s=clean(v[0]).toUpperCase().replace(/^(0X|#|&|\$)/,'').replace(/H$/,'');
+  if(!/^[0-9A-F]+$/.test(s))return res(false,'Use hexadecimal digits 0–9 and A–F.',true);return res(parseInt(s,16)===t);};
+const chkFixed=(bits,i)=>v=>{let s=clean(v[0]);
+  if(!/^[01]*\.?[01]*$/.test(s)||!/[01]/.test(s))return res(false,'Use only 0, 1 and an optional binary point.',true);
+  if(s.includes('.')){if(s.indexOf('.')!==i)return res(false,`The binary point should come after ${i} bits.`);s=s.replace('.','');}
+  if(s.length!==8)return res(false,'Give exactly 8 bits.',true);return res(s===bits);};
+
+/* ---------- floating point helpers (8-bit mantissa, 4-bit exponent, two's complement) ---------- */
+const fpVal=(m,e)=>m*2**(e-7);
+const isNorm=m=>(m>=64&&m<=127)||(m>=-128&&m<=-65);
+function normalise(v){
+  if(v===0)return null;
+  for(let e=-8;e<=7;e++){const m=v*2**(7-e);if(Number.isInteger(m)&&isNorm(m))return{m,e};}
+  return null;
+}
+function tidyMantissa(minZeros=2){
+  let m=rand()<.5?rnd(64,127):rnd(-128,-65);
+  const k=Math.min(6,rnd(minZeros,Math.max(minZeros,5)));
+  return m&~((1<<k)-1);
+}
+const mStr=m=>{const s=toTC(m,8);return s[0]+' '+s.slice(1);};
+const eStr=e=>toTC(e,4);
+const fpBox=(m,e,name)=>`<div class="fp">${name?`<span class="name">${name}</span>`:''}<span class="lbl">Mantissa</span><code>${mStr(m)}</code><span class="lbl">Exponent</span><code>${eStr(e)}</code></div>`;
+const fpFields=()=>F('Mantissa (8 bits)','Exponent (4 bits)');
+const fpSol=(m,e)=>[toTC(m,8),eStr(e)];
+const fpAnswer=(m,e)=>`Mantissa ${code(mStr(m))}, Exponent ${code(eStr(e))}`;
+const chkFP=(mt,et)=>v=>{
+  const ms=clean(v[0]).replace(/\./g,''),es=clean(v[1]).replace(/\./g,'');
+  if(!/^[01]{8}$/.test(ms))return res(false,'The mantissa must be exactly 8 bits.',true);
+  if(!/^[01]{4}$/.test(es))return res(false,'The exponent must be exactly 4 bits.',true);
+  const um=fromTC(ms),ue=fromTC(es);
+  if(um===mt&&ue===et)return res(true);
+  if(fpVal(um,ue)===fpVal(mt,et))return res(false,'That has the right value but is not normalised — the first two bits of the mantissa should differ.');
+  return res(false);
+};
+// smallest place value used anywhere is 1/16, so the value must be a multiple of 1/16
+function fpMantissa(e,minZeros=2){return tidyMantissa(Math.min(6,Math.max(minZeros,3-e)));}
+const fpWork=(m,e)=>{
+  const b=toTC(m,8);let s=e>=0?b.slice(0,1+e)+'.'+b.slice(1+e):b[0].repeat(-e)+b[0]+'.'+b.slice(1);
+  s=s.replace(/0+$/,'').replace(/\.$/,'');
+  return `Exponent ${eStr(e)} = ${fmt(e)}, so ${e===0?'the binary point stays put':`move the binary point ${Math.abs(e)} place${Math.abs(e)===1?'':'s'} ${e>0?'right':'left'}`}: ${mStr(m)} → ${s} (two's complement) = ${fmt(fpVal(m,e))}.`;};
+const fpIntro=`It uses an 8-bit two's complement mantissa and a 4-bit two's complement exponent.`;
+
+/* ---------- worked-explanation helpers ---------- */
+function placeSum(bits,weights){
+  const terms=[];
+  for(let k=0;k<bits.length;k++)if(bits[k]==='1')terms.push(weights[k]);
+  if(!terms.length)return '0';
+  let total=terms.reduce((a,b)=>a+b,0);
+  return terms.map((t,i)=>i===0?fmt(t):(t<0?' − '+fmt(-t):' + '+fmt(t))).join('')+' = '+fmt(total);
+}
+const weights=(w,signed,frac=0)=>Array.from({length:w},(_,k)=>{const p=w-1-k-frac;const x=2**p;return k===0&&signed?-x:x;});
+
+/* ---------- topics & generators ---------- */
+/* floating point addition/subtraction; working stays within 8 bits */
+const fpArith=add=>{const ea=rnd(-1,4),eb=Math.max(-1,Math.min(5,ea+rnd(-2,2))),ma=fpMantissa(ea),mb=fpMantissa(eb);
+    const va=fpVal(ma,ea),vb=fpVal(mb,eb),v=add?va+vb:va-vb,n=normalise(v);
+    // keep all working within 8 bits: both mantissas must align to the larger exponent without losing bits, and the sum must fit too
+    const E=Math.max(ea,eb),a2=ma/2**(E-ea),b2=mb/2**(E-eb),S=add?a2+b2:a2-b2;
+    if(!n||!Number.isInteger(a2)||!Number.isInteger(b2)||S<-128||S>127)return null;
+    const pa=`${ma},${ea}`,pb=`${mb},${eb}`;
+    return{key:add?[pa,pb].sort().join('+'):pa+'-'+pb,prompt:`Calculate <b>A ${add?'+':'−'} B</b>, giving your answer as a <b>normalised</b> floating point number. ${fpIntro}<br>${fpBox(ma,ea,'A')}${fpBox(mb,eb,'B')}`,
+      fields:fpFields(),check:chkFP(n.m,n.e),sol:fpSol(n.m,n.e),answer:fpAnswer(n.m,n.e),
+      work:`A = ${fmt(va)}, B = ${fmt(vb)}, so A ${add?'+':'−'} B = ${fmt(v)}. Normalised: ${fpWork(n.m,n.e)}`};};
+
+const TOPICS=[
+{id:'whole',name:'Binary whole numbers',desc:'Unsigned binary ↔ denary',gens:[
+  ()=>{const n=rnd(1,255),b=toBin(n,8);return{key:n,prompt:`Convert the unsigned (positive) binary number ${code(nib(b))} into denary.`,fields:F('Denary'),check:chkInt(n),sol:[String(n)],answer:fmt(n),work:placeSum(b,weights(8,false))};},
+  ()=>{const n=rnd(1,255),b=toBin(n,8);return{key:n,prompt:`Convert the denary number ${code(n)} into unsigned (positive) binary.`,fields:F('Binary'),check:chkBin(n),sol:[b],answer:code(nib(b)),work:placeSum(b,weights(8,false))};},
+]},
+{id:'binhex',name:'Binary and hexadecimal',desc:'Convert between binary and hex',gens:[
+  ()=>{const w=pick([8,8,12,16]),n=rnd(2**(w-4),2**w-1),b=toBin(n,w),h=hex(n);
+    return{key:n,prompt:`Convert the binary number ${code(nib(b))} into hexadecimal.`,fields:F('Hexadecimal'),check:chkHex(n),sol:[h],answer:code(h),
+      work:b.match(/.{4}/g).map(x=>`${x} → ${hex(parseInt(x,2))}`).join(', ')};},
+  ()=>{const d=pick([2,2,3,4]),n=rnd(16**(d-1),16**d-1),h=hex(n),b=toBin(n,d*4);
+    return{key:n,prompt:`Convert the hexadecimal number ${code(h)} into binary.`,fields:F('Binary'),check:chkBin(n),sol:[b],answer:code(nib(b)),
+      work:h.split('').map(c=>`${c} → ${toBin(parseInt(c,16),4)}`).join(', ')};},
+]},
+{id:'denhex',name:'Denary and hexadecimal',desc:'Convert between denary and hex',gens:[
+  ()=>{const n=rnd(16,255),h=hex(n);
+    const work=n<256?`${n} = ${Math.floor(n/16)} × 16 + ${n%16} → ${h}`:`${n} = ${Math.floor(n/256)} × 256 + ${Math.floor(n/16)%16} × 16 + ${n%16} → ${h}`;
+    return{key:n,prompt:`Convert the denary number ${code(n)} into hexadecimal.`,fields:F('Hexadecimal'),check:chkHex(n),sol:[h],answer:code(h),work};},
+  ()=>{const n=rnd(16,255),h=hex(n);
+    const work=h.split('').map((c,i)=>`${/[A-F]/.test(c)?`${c}(${parseInt(c,16)})`:c} × ${16**(h.length-1-i)}`).join(' + ')+` = ${n}`;
+    return{key:n,prompt:`Convert the hexadecimal number ${code(h)} into denary.`,fields:F('Denary'),check:chkInt(n),sol:[String(n)],answer:fmt(n),work};},
+]},
+{id:'neg',name:'Binary negative numbers',desc:'Sign & magnitude and two\'s complement',gens:[
+  ()=>{const n=rnd(1,127)*(rand()<.75?-1:1),b=(n<0?'1':'0')+toBin(Math.abs(n),7);
+    return{key:'sm'+n,prompt:`Represent the denary number ${code(fmt(n))} as an 8-bit <b>sign and magnitude</b> binary number.`,fields:F('Binary (8 bits)'),check:chkBinExact(b),sol:[b],answer:code(nib(b)),
+      work:`Sign bit ${b[0]} (${n<0?'negative':'positive'}), magnitude ${Math.abs(n)} = ${b.slice(1)} in 7 bits.`};},
+  ()=>{const n=rnd(1,127)*(rand()<.75?-1:1),b=(n<0?'1':'0')+toBin(Math.abs(n),7);
+    return{key:'sm'+n,prompt:`The 8-bit <b>sign and magnitude</b> binary number ${code(nib(b))} — what is it in denary?`,fields:F('Denary'),check:chkInt(n),sol:[String(n)],answer:fmt(n),
+      work:`Sign bit ${b[0]} means ${n<0?'negative':'positive'}; magnitude ${b.slice(1)} = ${Math.abs(n)}.`};},
+  ()=>{const n=rand()<.8?rnd(-128,-1):rnd(1,127),b=toTC(n,8);
+    let work;if(n>0)work=`Positive, so it is just ${n} in 8-bit binary.`;else if(n===-128)work=`−128 is the most negative 8-bit value: 1000 0000.`;
+    else{const p=toBin(-n,8),f=p.replace(/[01]/g,c=>c==='0'?'1':'0');work=`+${-n} = ${nib(p)}; flip the bits → ${nib(f)}; add 1 → ${nib(b)}.`;}
+    return{key:'tc'+n,prompt:`Represent the denary number ${code(fmt(n))} as an 8-bit <b>two's complement</b> binary number.`,fields:F('Binary (8 bits)'),check:chkBinExact(b),sol:[b],answer:code(nib(b)),work};},
+  ()=>{const n=rand()<.8?rnd(-128,-1):rnd(1,127),b=toTC(n,8);
+    return{key:'tc'+n,prompt:`The 8-bit <b>two's complement</b> binary number ${code(nib(b))} — what is it in denary?`,fields:F('Denary'),check:chkInt(n),sol:[String(n)],answer:fmt(n),work:placeSum(b,weights(8,true))};},
+]},
+{id:'add',name:'Binary addition',desc:'Add unsigned (positive) binary numbers',gens:[
+  ()=>{const a=rnd(20,200),b=rnd(10,255-a),s=a+b,A=toBin(a,8),B=toBin(b,8);
+    return{key:[a,b].sort((x,y)=>x-y).join('+'),prompt:`Add these two unsigned (positive) binary numbers. Give your answer in binary.<br><pre class="sum">  ${nib(A)}\n+ ${nib(B)}</pre>`,fields:F('Binary'),check:chkBin(s),sol:[toBin(s,8)],answer:code(nib(toBin(s,8))),work:`In denary: ${a} + ${b} = ${s}.`};},
+  ()=>{const a=rnd(10,100),b=rnd(10,100),c=rnd(5,Math.max(5,255-a-b)),s=a+b+c;
+    if(s>255)return null;
+    return{key:[a,b,c].sort((x,y)=>x-y).join('+'),prompt:`Add these three unsigned (positive) binary numbers. Give your answer in binary.<br><pre class="sum">  ${nib(toBin(a,8))}\n  ${nib(toBin(b,8))}\n+ ${nib(toBin(c,8))}</pre>`,fields:F('Binary'),check:chkBin(s),sol:[toBin(s,8)],answer:code(nib(toBin(s,8))),work:`In denary: ${a} + ${b} + ${c} = ${s}.`};},
+]},
+{id:'sub',name:'Binary subtraction',desc:'Subtract using two\'s complement',gens:[
+  ()=>{let a=rnd(1,127),b=rnd(1,127);if(a===b)return null;const A=toBin(a,8),B=toBin(b,8),nb=toTC(-b,8),r=toTC(a-b,8);
+    return{key:a+'-'+b,prompt:`Using 8-bit two's complement, calculate the following. Give your answer as an 8-bit two's complement binary number.<br><pre class="sum">  ${nib(A)}\n− ${nib(B)}</pre>`,
+      fields:F('Binary (8 bits)'),check:chkBinExact(r),sol:[r],answer:code(nib(r)),
+      work:`−${b} in two's complement is ${nib(nb)}. Add: ${nib(A)} + ${nib(nb)} = ${nib(r)} (ignore any carry out of bit 8). In denary: ${a} − ${b} = ${fmt(a-b)}.`};},
+]},
+{id:'fixed',name:'Fixed point numbers',desc:'Unsigned and two\'s complement fixed point',gens:[
+  ()=>{const i=pick([4,5,6]),f=8-i,signed=rand()<.5,raw=rnd(1,255),b=toBin(raw,8),val=(signed?fromTC(b):raw)/2**f;
+    return{key:[i,signed,raw].join(),prompt:`This is an 8-bit <b>${signed?"two's complement":'unsigned (positive)'}</b> fixed point binary number with ${i} bits before the binary point and ${f} after: ${code(b.slice(0,i)+'.'+b.slice(i))}<br>What is its value in denary?`,
+      fields:F('Denary'),check:chkNum(val),sol:[String(val)],answer:fmt(val),work:placeSum(b,weights(8,signed,f))};},
+  ()=>{const i=pick([4,5,6]),f=8-i,signed=rand()<.5,raw=rnd(1,255),b=toBin(raw,8),val=(signed?fromTC(b):raw)/2**f;
+    return{key:[i,signed,raw].join(),prompt:`Represent ${code(fmt(val))} as an 8-bit <b>${signed?"two's complement":'unsigned (positive)'}</b> fixed point binary number with ${i} bits before the binary point and ${f} after.`,
+      fields:F('Binary (8 bits)'),check:chkFixed(b,i),sol:[b.slice(0,i)+'.'+b.slice(i)],answer:code(b.slice(0,i)+'.'+b.slice(i)),work:placeSum(b,weights(8,signed,f))};},
+]},
+{id:'fp',name:'Floating point numbers',desc:'Floating point ↔ denary',gens:[
+  ()=>{const e=rnd(-2,5),m=fpMantissa(e),v=fpVal(m,e);
+    return{key:m+','+e,prompt:`Convert this normalised floating point number into denary. ${fpIntro}<br>${fpBox(m,e)}`,fields:F('Denary'),check:chkNum(v),sol:[String(v)],answer:fmt(v),work:fpWork(m,e)};},
+  ()=>{const e=rnd(-2,5),m=fpMantissa(e),v=fpVal(m,e);
+    return{key:m+','+e,prompt:`Represent ${code(fmt(v))} as a <b>normalised</b> floating point number with an 8-bit two's complement mantissa and a 4-bit two's complement exponent.`,
+      fields:fpFields(),check:chkFP(m,e),sol:fpSol(m,e),answer:fpAnswer(m,e),work:fpWork(m,e)};},
+]},
+{id:'fpnorm',name:'Floating point normalisation',desc:'Normalise floating point numbers',gens:[
+  ()=>{const s=rnd(1,3),e=rnd(-2,7-s),m=fpMantissa(e,s),um=m>>s,ue=e+s;
+    return{key:m+','+e,prompt:`Normalise this floating point number. ${fpIntro}<br>${fpBox(um,ue)}`,fields:fpFields(),check:chkFP(m,e),sol:fpSol(m,e),answer:fpAnswer(m,e),
+      work:`Shift the mantissa ${s} place${s>1?'s':''} left until the first two bits differ (${mStr(um)} → ${mStr(m)}), and subtract ${s} from the exponent: ${fmt(ue)} − ${s} = ${fmt(e)}. Value: ${fmt(fpVal(m,e))}.`};},
+]},
+{id:'fpadd',name:'Floating point addition',desc:'Add floating point numbers, answer normalised',gens:[()=>fpArith(true)]},
+{id:'fpsub',name:'Floating point subtraction',desc:'Subtract floating point numbers, answer normalised',gens:[()=>fpArith(false)]},
+];
+
+function makeQuestion(topic,seen){
+  // a question is a duplicate if it uses the same underlying numbers in the same topic,
+  // whichever direction it is asked in (e.g. 56 → binary and 0011 1000 → denary)
+  for(let tries=0;tries<5000;tries++){
+    const q=pick(topic.gens)();
+    if(!q)continue;
+    const k=topic.id+':'+q.key;
+    if(seen.has(k)||seen.has('p:'+q.prompt))continue;
+    seen.add(k);seen.add('p:'+q.prompt);q.topic=topic;return q;
+  }
+  return null;
+}
+
+/* ---------- Markdown helpers (for export) ---------- */
+function htmlToMd(html){
+  return String(html)
+    .replace(/<pre class="sum">([\s\S]*?)<\/pre>/g,(_,x)=>'\n\n```\n'+x+'\n```\n')
+    .replace(/<div class="fp">(?:<span class="name">(.*?)<\/span>)?<span class="lbl">Mantissa<\/span><code>(.*?)<\/code><span class="lbl">Exponent<\/span><code>(.*?)<\/code><\/div>/g,
+      (_,name,m,e)=>`\n- ${name?`**${name}:** `:''}Mantissa \`${m}\`, Exponent \`${e}\``)
+    .replace(/<br\s*\/?>/g,'\n')
+    .replace(/<code>(.*?)<\/code>/g,'`$1`')
+    .replace(/<\/?b>/g,'**')
+    .replace(/<sup>(.*?)<\/sup>/g,'^$1')
+    .replace(/<[^>]+>/g,'')
+    .replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&')
+    .replace(/\n{3,}/g,'\n\n').trim();
+}
+const mdCode=s=>'`'+String(s).replace(/`/g,"'")+'`';
+
+/* ---------- UI ---------- */
+if(typeof document!=='undefined'){
+const $=id=>document.getElementById(id);
+const store={get(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}},del(k){try{localStorage.removeItem(k);}catch(e){}}};
+const SAVE_KEY='bb-session';
+let questions=[],currentSeed='',currentIds=[],currentN=0,startedAt=null;
+
+const savedTopics=store.get('bb-topics');
+const topicsEl=$('topics');
+TOPICS.forEach(t=>{
+  const lab=document.createElement('label');lab.className='topic';
+  lab.innerHTML=`<input type="checkbox" value="${t.id}"><span>${t.name}<small>${t.desc}</small></span>`;
+  const cb=lab.querySelector('input');cb.checked=savedTopics?savedTopics.includes(t.id):false;
+  cb.addEventListener('change',syncTopics);topicsEl.appendChild(lab);
+});
+const savedCount=store.get('bb-count');if(savedCount)$('count').value=savedCount;
+function syncTopics(){topicsEl.querySelectorAll('.topic').forEach(l=>l.classList.toggle('on',l.querySelector('input').checked));$('setupErr').textContent='';}
+syncTopics();
+$('allBtn').onclick=()=>{topicsEl.querySelectorAll('input').forEach(c=>c.checked=true);syncTopics();};
+$('noneBtn').onclick=()=>{topicsEl.querySelectorAll('input').forEach(c=>c.checked=false);syncTopics();};
+
+$('genBtn').onclick=generate;
+$('newBtn').onclick=()=>{
+  if(questions.length&&!confirm('Start a new set? This will permanently erase your current questions and progress. Use “Export my work” first if you want to keep a copy.'))return;
+  questions=[];store.del(SAVE_KEY);
+  $('questions').innerHTML='';$('chips').innerHTML='';
+  $('seed').value=newSeed();
+  showSetup(true);
+  window.scrollTo({top:0,behavior:'smooth'});
+};
+function showSetup(on){$('setup').classList.toggle('hidden',!on);$('quiz').classList.toggle('hidden',on);}
+$('exportBtn').onclick=exportWork;
+
+$('seed').value=newSeed();
+$('seedBtn').onclick=()=>{$('seed').value=newSeed();};
+$('seed').addEventListener('input',e=>{const v=e.target.value.replace(/\D/g,'');if(v!==e.target.value)e.target.value=v;});
+
+/* Questions are rebuilt from (seed, topics, count), so only progress needs saving. */
+function buildQuestions(ids,n,seed){
+  seedRandom(seed);currentSeed=seed;currentIds=ids;currentN=n;
+  const chosen=TOPICS.filter(t=>ids.includes(t.id));
+  const order=[];let pool=[];
+  for(let i=0;i<n;i++){if(!pool.length)pool=shuffle(chosen.slice());order.push(pool.pop());}
+  const seen=new Set();
+  questions=order.map(t=>makeQuestion(t,seen)).filter(Boolean);
+  questions.forEach(q=>{q.state='open';q.attempts=0;q.history=[];q.lastMsg='';});
+}
+
+function generate(){
+  const ids=[...topicsEl.querySelectorAll('input:checked')].map(c=>c.value);
+  const n=parseInt($('count').value,10);
+  let seed=$('seed').value.replace(/\D/g,'');if(!seed)seed=newSeed();$('seed').value=seed;
+  if(!ids.length){$('setupErr').textContent='Pick at least one topic.';return;}
+  if(!(n>=1&&n<=100)){$('setupErr').textContent='Choose between 1 and 100 questions.';return;}
+  store.set('bb-topics',ids);store.set('bb-count',n);
+  buildQuestions(ids,n,seed);startedAt=new Date().toISOString();
+  render();save();
+  showSetup(false);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function save(){
+  if(!questions.length)return;
+  store.set(SAVE_KEY,{v:2,seed:currentSeed,ids:currentIds,n:currentN,startedAt,
+    qs:questions.map(q=>({state:q.state,attempts:q.attempts,history:q.history,lastMsg:q.lastMsg,
+      inputs:q.el?[...q.el.querySelectorAll('input')].map(x=>x.value):[]}))});
+}
+
+function restore(){
+  const st=store.get(SAVE_KEY);
+  if(!st||st.v!==2||!st.seed||!Array.isArray(st.ids)||!Array.isArray(st.qs))return;
+  buildQuestions(st.ids,st.n,st.seed);
+  if(questions.length!==st.qs.length){questions=[];store.del(SAVE_KEY);return;}
+  startedAt=st.startedAt||null;
+  $('seed').value=st.seed;
+  render();
+  questions.forEach((q,i)=>{
+    const s=st.qs[i]||{};
+    q.attempts=s.attempts||0;q.history=Array.isArray(s.history)?s.history:[];q.lastMsg=s.lastMsg||'';
+    const inputs=[...q.el.querySelectorAll('input')];
+    (s.inputs||[]).forEach((v,k)=>{if(inputs[k])inputs[k].value=v;});
+    if(s.state==='correct')showCorrect(q);
+    else if(s.state==='revealed')showRevealed(q);
+    else if(s.state==='wrong')showWrong(q);
+  });
+  updateScore();
+  showSetup(false);
+}
+
+function render(){
+  const qEl=$('questions'),chips=$('chips');qEl.innerHTML='';chips.innerHTML='';
+  questions.forEach((q,i)=>{
+    const card=document.createElement('article');card.className='q';card.id='q'+(i+1);
+    card.innerHTML=`<header><span class="num">Question ${i+1}</span><span class="tag">${q.topic.name}</span><span class="badge"></span></header>
+      <div class="prompt">${q.prompt}</div>
+      <form class="fields" autocomplete="off">
+        ${q.fields.map(f=>`<label>${f.label}<input type="text" spellcheck="false" autocapitalize="off" placeholder="${f.ph||''}"></label>`).join('')}
+        <button type="submit">Check</button>
+        <button type="button" class="ghost reveal hidden">Show answer</button>
+      </form>
+      <div class="feedback" aria-live="polite"></div>`;
+    card.querySelector('form').addEventListener('submit',e=>{e.preventDefault();mark(i);});
+    card.querySelector('form').addEventListener('input',save);
+    card.querySelector('.reveal').addEventListener('click',()=>reveal(i));
+    q.el=card;qEl.appendChild(card);
+    const chip=document.createElement('button');chip.className='chip';chip.type='button';chip.textContent=i+1;chip.title='Go to question '+(i+1);
+    chip.onclick=()=>{card.scrollIntoView({behavior:'smooth',block:'start'});const inp=card.querySelector('input:not([disabled])');if(inp)setTimeout(()=>inp.focus({preventScroll:true}),350);};
+    q.chip=chip;chips.appendChild(chip);
+  });
+  updateScore();
+}
+
+function setState(q,state,badge){
+  q.state=state;
+  q.el.classList.remove('correct','wrong','revealed');q.chip.classList.remove('correct','wrong','revealed');
+  if(state!=='open'){q.el.classList.add(state);q.chip.classList.add(state);}
+  q.el.querySelector('.badge').textContent=badge||'';
+}
+function lock(q){q.el.querySelectorAll('input,button').forEach(x=>x.disabled=true);}
+function feedback(q,cls,html){const fb=q.el.querySelector('.feedback');fb.className='feedback '+cls;fb.innerHTML=html;}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function showCorrect(q){
+  setState(q,'correct',q.attempts===1?'✓ Correct':`✓ Correct (attempt ${q.attempts})`);lock(q);
+  feedback(q,'ok',`<strong>Correct! Answer: ${q.answer}</strong><div class="work">${q.work||''}</div>`);
+}
+function showWrong(q){
+  setState(q,'wrong',`✗ ${q.attempts} attempt${q.attempts>1?'s':''}`);
+  const canReveal=q.attempts>=2;
+  q.el.querySelector('.reveal').classList.toggle('hidden',!canReveal);
+  feedback(q,'bad',`<strong>Not quite — try again${canReveal?', or use “Show answer”':''}.</strong>${esc(q.lastMsg||'')}`);
+}
+function showRevealed(q){
+  setState(q,'revealed','Answer shown');lock(q);
+  feedback(q,'info',`<strong>Answer: ${q.answer}</strong><div class="work">${q.work||''}</div>`);
+}
+
+function mark(i){
+  const q=questions[i];if(q.state==='correct'||q.state==='revealed')return;
+  const vals=[...q.el.querySelectorAll('input')].map(x=>x.value);
+  if(vals.some(v=>!clean(v))){feedback(q,'bad','<strong>Please fill in your answer first.</strong>');return;}
+  const r=q.check(vals);
+  if(r.invalid){feedback(q,'bad',`<strong>Check your format</strong>${r.msg}`);return;}
+  q.attempts++;
+  q.history.push({vals,ok:r.ok,msg:r.msg||''});
+  if(r.ok)showCorrect(q);else{q.lastMsg=r.msg||'';showWrong(q);}
+  updateScore();save();
+}
+function reveal(i){
+  const q=questions[i];if(q.state==='correct')return;
+  showRevealed(q);updateScore();save();
+}
+function stats(){
+  const n=questions.length,c=questions.filter(q=>q.state==='correct').length,
+    first=questions.filter(q=>q.state==='correct'&&q.attempts===1).length,
+    rev=questions.filter(q=>q.state==='revealed').length;
+  return{n,c,first,rev,done:c+rev};
+}
+function updateScore(){
+  const {n,c,first,rev,done}=stats();
+  $('score').innerHTML=`${c} / ${n} correct <span>· ${first} first time · ${n-done} left · seed ${esc(currentSeed)}</span>`;
+  $('bar').style.width=(n?done/n*100:0)+'%';
+  const dm=$('doneMsg');
+  if(n&&done===n){dm.classList.remove('hidden');dm.textContent=`All done! You got ${c} out of ${n} correct (${first} first time). Use “Export my work” at the bottom to save a copy, or “New set” to go again.`;}
+  else dm.classList.add('hidden');
+}
+
+/* ---------- export ---------- */
+function outcome(q){
+  const a=q.attempts;
+  if(q.state==='correct')return a===1?'✅ Correct first time':`✅ Correct on attempt ${a} (${a-1} wrong before)`;
+  if(q.state==='revealed')return a?`👀 Answer revealed after ${a} failed attempt${a>1?'s':''}`:'👀 Answer revealed without an attempt';
+  if(a)return `❌ Not yet solved — ${a} wrong attempt${a>1?'s':''}`;
+  return '⬜ Not attempted';
+}
+function exportWork(){
+  const {n,c,first,rev,done}=stats();
+  const wrongOpen=questions.filter(q=>q.state==='wrong').length;
+  const totalAttempts=questions.reduce((s,q)=>s+q.attempts,0);
+  const now=new Date();
+  const L=[];
+  L.push("# Birtles' Binary Banquet — my work",'');
+  L.push(`- **Exported:** ${now.toLocaleString()}`);
+  if(startedAt)L.push(`- **Started:** ${new Date(startedAt).toLocaleString()}`);
+  L.push(`- **Random seed:** ${currentSeed}`);
+  L.push(`- **Topics:** ${TOPICS.filter(t=>currentIds.includes(t.id)).map(t=>t.name).join(', ')}`);
+  L.push('','## Summary','');
+  L.push('| | Count |','|---|---|');
+  L.push(`| Questions | ${n} |`,`| Correct | ${c} |`,`| Correct first time | ${first} |`,`| Correct after a wrong attempt | ${c-first} |`,
+    `| Answer revealed | ${rev} |`,`| Attempted but not solved | ${wrongOpen} |`,`| Not attempted | ${n-done-wrongOpen} |`,`| Total attempts | ${totalAttempts} |`);
+  L.push(`| **Score** | **${c} / ${n}${n?` (${Math.round(c/n*100)}%)`:''}** |`);
+  // per-topic breakdown
+  const byTopic=TOPICS.filter(t=>currentIds.includes(t.id)).map(t=>{const qs=questions.filter(q=>q.topic===t);
+    return `| ${t.name} | ${qs.length} | ${qs.filter(q=>q.state==='correct').length} | ${qs.filter(q=>q.state==='correct'&&q.attempts===1).length} | ${qs.filter(q=>q.state==='revealed').length} |`;});
+  L.push('','### By topic','','| Topic | Questions | Correct | First time | Revealed |','|---|---|---|---|---|',...byTopic);
+  L.push('','## Questions','');
+  questions.forEach((q,i)=>{
+    L.push(`### Question ${i+1} — ${q.topic.name}`,'');
+    L.push(htmlToMd(q.prompt),'');
+    L.push(`**Result:** ${outcome(q)}`,'');
+    if(q.history.length){
+      L.push('**Attempts:**','');
+      q.history.forEach((h,k)=>{
+        const ans=q.fields.length>1?q.fields.map((f,j)=>`${f.label.replace(/\s*\(.*\)/,'')} ${mdCode(h.vals[j])}`).join(', '):mdCode(h.vals[0]);
+        L.push(`${k+1}. ${ans} — ${h.ok?'✅ correct':'❌ wrong'}${!h.ok&&h.msg?` (${h.msg})`:''}`);
+      });
+      L.push('');
+    }
+    if(q.state!=='correct'&&q.state!=='revealed'){
+      const cur=q.el?[...q.el.querySelectorAll('input')].map(x=>x.value):[];
+      const partial=cur.filter(v=>v.trim()),last=q.history.length?q.history[q.history.length-1].vals:null;
+      if(partial.length&&!(last&&cur.join('\u0000')===last.join('\u0000')))L.push(`**Unsubmitted answer:** ${partial.map(mdCode).join(', ')}`,'');
+    }
+    if(q.state==='correct'||q.state==='revealed'){
+      L.push(`**Correct answer:** ${htmlToMd(q.answer)}`,'');
+      if(q.work)L.push(`**Working:** ${htmlToMd(q.work)}`,'');
+    }else{
+      L.push('_Correct answer not shown — question still open._','');
+    }
+  });
+  const blob=new Blob([L.join('\n')],{type:'text/markdown'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const stamp=now.toISOString().slice(0,16).replace(/[-:T]/g,'').replace(/^(\d{8})/,'$1-');
+  a.href=url;a.download=`birtles-binary-banquet-${currentSeed}-${stamp}.md`;
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+restore();
+}
+</script>
+</body>
+</html>
